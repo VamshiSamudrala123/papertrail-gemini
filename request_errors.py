@@ -2,7 +2,7 @@
 from dataclasses import dataclass
 import random
 import re
-import time
+from time import sleep
 
 
 @dataclass(frozen=True)
@@ -61,4 +61,4 @@ def answer_with_retry(operation, on_retry=None):
             delay = (2 ** attempt) + random.uniform(0, 0.5)
             if on_retry is not None:
                 on_retry(attempt + 2)
-            time.sleep(delay)
+            sleep(delay)

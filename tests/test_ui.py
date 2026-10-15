@@ -71,7 +71,7 @@ class WorkspaceTests(unittest.TestCase):
             self.assertIsNone(app.session_state["evaluation"])
             self.assertTrue(index.closed)
 
-    @patch("request_errors.time.sleep")
+    @patch("request_errors.sleep")
     def test_busy_model_saves_question_and_manual_retry_does_not_duplicate_it(self, sleep):
         upload = SimpleNamespace(name="report.pdf", getvalue=lambda: b"test-pdf")
         index = FakeIndex()

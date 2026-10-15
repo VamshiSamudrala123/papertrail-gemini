@@ -11,7 +11,7 @@ class ServerError(Exception):
 
 
 class RecoveryTests(unittest.TestCase):
-    @patch("request_errors.time.sleep")
+    @patch("request_errors.sleep")
     @patch("request_errors.random.uniform", return_value=0)
     def test_transient_errors_back_off_and_return_success(self, jitter, sleep):
         request = Mock(side_effect=[ServerError(503), ServerError(502), "answer"])
@@ -20,7 +20,7 @@ class RecoveryTests(unittest.TestCase):
         self.assertEqual([call.args[0] for call in sleep.call_args_list], [1, 2])
         self.assertEqual([call.args[0] for call in notify.call_args_list], [2, 3])
 
-    @patch("request_errors.time.sleep")
+    @patch("request_errors.sleep")
     def test_persistent_failure_stops_after_three_attempts(self, sleep):
         request = Mock(side_effect=ServerError(503))
         with self.assertRaises(AnswerUnavailable) as caught:
@@ -30,7 +30,7 @@ class RecoveryTests(unittest.TestCase):
         self.assertNotIn("secret-test-key", str(caught.exception))
         self.assertNotIn("503", str(caught.exception))
 
-    @patch("request_errors.time.sleep")
+    @patch("request_errors.sleep")
     def test_key_quota_and_configuration_errors_are_not_retried(self, sleep):
         for code in (400, 401, 403, 404, 429):
             with self.subTest(code=code):
