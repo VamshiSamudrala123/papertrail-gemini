@@ -1,1 +1,2 @@
 pypdf>=5,<7
+streamlit>=1.40,<2

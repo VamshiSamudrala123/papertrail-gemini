@@ -3,4 +3,9 @@ headless = true
 maxUploadSize = 12
 
 [theme]
-primaryColor = "#1D776D"
+base = "light"
+primaryColor = "#315B44"
+backgroundColor = "#FBFAF6"
+secondaryBackgroundColor = "#F1F2EB"
+textColor = "#24362E"
+font = "sans serif"

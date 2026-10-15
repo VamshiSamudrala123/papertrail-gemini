@@ -1,5 +1,7 @@
 # Papertrail
 
+[Open the app](https://papertrail-gemini-vw6p33zajubdtuvexnpv5z.streamlit.app/)
+
 Ask questions across PDFs and check the passages behind each answer. A CrewAI agent searches a session-scoped Chroma index and uses **Gemini 3.8 Flash** (`gemini-3.8-flash`) to explain what it finds.
 
 Inspired by [Aman Kharwal's Agentic RAG walkthrough](https://amanxai.com/2026/07/08/build-an-end-to-end-agentic-rag-system/), with a Streamlit interface, multiple documents, page citations, chat export, and retrieval evaluation.
@@ -41,11 +43,12 @@ For local answers with Ollama, run `ollama pull llama3.2` and start Ollama on `l
 - A CrewAI agent that can search repeatedly before answering.
 - Citation markers with expandable filenames, page numbers, and source passages.
 - Session chat history and JSON export.
-- A retrieval evaluation tab with Hit@k, MRR@k, and result export.
+- A Search quality tab with Hit@k, MRR@k, and result export.
+- A focused conversation area, starter questions, and a source panel beside the latest answer. Model settings stay in expandable sidebar sections.
 
 ## Evaluate retrieval
 
-Paste one JSON object per line into the evaluation tab:
+Paste one JSON object per line into the Search quality tab:
 
 ```jsonl
 {"question":"What was revenue?","expected_source":"annual.pdf","expected_text":"revenue"}
@@ -59,7 +62,7 @@ python -m pip install -r requirements-dev.txt
 python -m unittest discover -s tests -v
 ```
 
-The tests use doubles for the agent and index and do not spend API credits. For a live check, upload a short PDF, ask a question with a known answer, inspect its page citation, then ask something the PDF does not cover.
+The tests use doubles for the agent and index and do not spend API credits. Streamlit UI tests exercise document setup, starter questions, source rendering, new conversations, evaluation results, and workspace reset. For a live check, upload a short PDF, ask a question with a known answer, inspect its page citation, then ask something the PDF does not cover.
 
 ## Deploy on Streamlit Community Cloud
 
