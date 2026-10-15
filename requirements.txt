@@ -1,0 +1,6 @@
+streamlit>=1.40,<2
+pypdf>=5,<7
+chromadb>=0.6,<2
+sentence-transformers>=3,<6
+crewai[google-genai]>=1.15.28,<2
+litellm>=1.65,<2
