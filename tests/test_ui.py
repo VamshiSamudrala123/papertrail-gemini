@@ -71,6 +71,34 @@ class WorkspaceTests(unittest.TestCase):
             self.assertIsNone(app.session_state["evaluation"])
             self.assertTrue(index.closed)
 
+    @patch("request_errors.time.sleep")
+    def test_busy_model_saves_question_and_manual_retry_does_not_duplicate_it(self, sleep):
+        upload = SimpleNamespace(name="report.pdf", getvalue=lambda: b"test-pdf")
+        index = FakeIndex()
+        busy = RuntimeError("503 UNAVAILABLE. private-provider-response")
+        with patch("streamlit.file_uploader", return_value=[upload]), patch(
+            "agentic_rag.read_pdfs", return_value=([Page("report.pdf", 2, "Revenue was 42 million.")], [])
+        ), patch("agentic_rag.DocumentIndex", return_value=index), patch(
+            "agentic_rag.ask_agent", side_effect=[busy, busy, busy, ("Revenue was 42 million. [S1]", index.search(""))]
+        ) as ask:
+            app = self.app().run()
+            app.chat_input[0].set_value("Revenue?").run()
+            self.assertFalse(app.exception)
+            self.assertEqual(ask.call_count, 3)
+            self.assertEqual(len(app.session_state["messages"]), 1)
+            self.assertTrue(app.session_state["failed_question"])
+            self.assertIn("temporarily unavailable", app.warning[0].value)
+            self.assertNotIn("private-provider-response", app.warning[0].value)
+            self.assertFalse(app.error)
+            app.slider[0].set_value(4).run()
+            self.assertTrue(app.session_state["failed_question"])
+            self.button(app, "Try again").click().run()
+            self.assertFalse(app.exception)
+            self.assertEqual(ask.call_count, 4)
+            self.assertEqual(len(app.session_state["messages"]), 2)
+            self.assertEqual(ask.call_args.args[2], [])
+            self.assertIsNone(app.session_state["failed_question"])
+
 
 class FakeIndex:
     closed = False

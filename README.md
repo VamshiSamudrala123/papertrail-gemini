@@ -44,6 +44,7 @@ For local answers with Ollama, run `ollama pull llama3.2` and start Ollama on `l
 - Citation markers with expandable filenames, page numbers, and source passages.
 - Session chat history and JSON export.
 - A Search quality tab with Hit@k, MRR@k, and result export.
+- Temporary model errors get up to two app-level retries with short exponential backoff. If the provider stays busy, the question is saved with a Try again button. API key and quota errors show a short explanation without automatic retries.
 - A focused conversation area, starter questions, and a source panel beside the latest answer. Model settings stay in expandable sidebar sections.
 
 ## Evaluate retrieval

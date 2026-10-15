@@ -9,6 +9,8 @@ from pathlib import Path
 
 import streamlit as st
 
+from request_errors import AnswerUnavailable, answer_with_retry, classify_error
+
 from agentic_rag import (
     DEFAULT_GEMINI_MODEL, DocumentIndex, ask_agent, evaluate_retrieval,
     read_pdfs, split_pages,
@@ -22,7 +24,7 @@ st.markdown(f"<style>{Path(__file__).with_name('styles.css').read_text()}</style
 
 DEFAULTS = {
     "messages": [], "index": None, "fingerprint": None,
-    "sources": [], "chunks": 0, "evaluation": None, "pending_question": None,
+    "sources": [], "chunks": 0, "evaluation": None, "pending_question": None, "failed_question": None,
 }
 for key, value in DEFAULTS.items():
     if key not in st.session_state:
@@ -46,6 +48,7 @@ def reset_workspace():
 def new_chat():
     st.session_state.messages = []
     st.session_state.pending_question = None
+    st.session_state.failed_question = None
 
 
 def queue_question(question):
@@ -200,31 +203,49 @@ with chat:
 
         if index is not None and provider == "Gemini" and not api_key:
             st.info("Add your Google API key in the left panel to start asking questions.")
+        failed = st.session_state.failed_question
+        if failed:
+            with thread:
+                st.warning(failed["message"])
+                st.button(
+                    "Try again", on_click=queue_question, args=(failed["question"],),
+                    disabled=not ready, key="retry_answer",
+                )
         typed_question = st.chat_input("What would you like to know?", disabled=not ready)
         question = typed_question or st.session_state.pending_question
         st.session_state.pending_question = None
         if question and ready:
+            retrying = bool(failed and failed["question"] == question)
             history = list(st.session_state.messages)
-            st.session_state.messages.append({"role": "user", "content": question})
+            if retrying and history and history[-1].get("role") == "user" and history[-1].get("content") == question:
+                history = history[:-1]
+            else:
+                st.session_state.messages.append({"role": "user", "content": question})
+            st.session_state.failed_question = None
             with thread:
-                with st.chat_message("user"):
-                    st.markdown(question)
-            try:
-                with st.spinner("Reading the relevant pages…"):
-                    if provider == "Search only":
-                        found = index.search(question, k)
-                        answer = "Here are the closest passages from your documents." if found else "No passages found."
-                    else:
-                        answer, found = ask_agent(index, question, history, provider, model, api_key, k)
-                evidence = [{"source": e.source, "page": e.page, "text": e.text} for e in found]
-                st.session_state.messages.append({"role": "assistant", "content": answer, "evidence": evidence})
-                st.rerun()
-            except Exception as exc:
-                detail = str(exc)
-                for secret in (api_key, str(api_key).strip() if api_key else None):
-                    if secret:
-                        detail = detail.replace(secret, "[redacted]")
-                st.error(f"Could not answer this question: {detail}")
+                if not retrying:
+                    with st.chat_message("user"):
+                        st.markdown(question)
+                progress = st.empty()
+                try:
+                    with st.spinner("Reading the relevant pages…"):
+                        if provider == "Search only":
+                            found = index.search(question, k)
+                            answer = "Here are the closest passages from your documents." if found else "No passages found."
+                        else:
+                            answer, found = answer_with_retry(
+                                lambda: ask_agent(index, question, history, provider, model, api_key, k),
+                                on_retry=lambda attempt: progress.info(f"The model is temporarily busy. Trying again ({attempt} of 3)…"),
+                            )
+                    evidence = [{"source": e.source, "page": e.page, "text": e.text} for e in found]
+                    st.session_state.messages.append({"role": "assistant", "content": answer, "evidence": evidence})
+                except Exception as exc:
+                    issue = exc.issue if isinstance(exc, AnswerUnavailable) else classify_error(exc)
+                    st.session_state.failed_question = {"question": question, "message": issue.message}
+                finally:
+                    progress.empty()
+            # Rerender once so the welcome screen disappears and saved errors remain visible.
+            st.rerun()
         st.caption("Answers can miss context. Check the source passages before relying on a claim.")
 
     with sources:
